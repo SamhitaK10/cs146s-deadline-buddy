@@ -1,6 +1,6 @@
 {
-  "name": "deadline-buddy",
-  "version": "0.0.0",
+  "name": "cs146s-deadline-buddy",
+  "version": "0.1.0",
   "type": "module",
   "imports": {
     "#*": "./agent/*",
@@ -12,9 +12,12 @@
     "dev": "eve dev",
     "eval": "eve eval",
     "start": "eve start",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "test": "node --test test/*.test.ts",
+    "check": "tsc && node --test test/*.test.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.109",
     "@vercel/connect": "2.7.0",
     "ai": "^7.0.137",
     "eve": "^1.0.0-rc.1",
@@ -26,6 +29,6 @@
   },
   "engines": {
     "node": "24.x"
-  }
-
+  },
+  "description": "CS 146S Deadline Buddy: an eve agent that tracks course deadlines and plans your week (Gemini)"
 }
