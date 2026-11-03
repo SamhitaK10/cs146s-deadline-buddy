@@ -6,7 +6,8 @@ import { daysBetween, loadCalendar, todayInCourseTz } from "../lib/calendar.ts";
 export default defineTool({
   description:
     "List CS 146S deadlines (assignments, OSS contributions, project milestones, forms) from the course calendar, " +
-    "with days remaining counted from today in Pacific time. Use this for any question about what is due or when.",
+    "with days remaining counted from today in Pacific time. Use this for any question about what is due or when. " +
+    "Each deadline's `week` can be passed to week_schedule, and the N in an 'Assignment N' title to get_assignment_spec.",
   label: { start: () => "Checking the course calendar" },
   inputSchema: z.object({
     withinDays: z

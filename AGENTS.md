@@ -1,55 +1,45 @@
-# eve Agent App
+# Deadline Buddy
 
-This project uses the eve framework: an agent is a directory of files under `agent/`, and eve compiles and runs it.
+An [eve](https://eve.dev) agent (Vercel's agent framework) that answers CS 146S deadline and assignment questions on Gemini. eve compiles everything under `agent/` into the running agent; there is no other app code.
 
-For a content-only change to the root agent's identity, purpose, tone, or response guidelines, edit its existing authored instructions. Fresh projects use `agent/instructions.md`; a project may instead use `agent/instructions.ts` or files under `agent/instructions/`. You do not need to read the framework docs for a content-only instructions change. A fresh project already has its selected model in `agent/agent.ts`; preserve that file unless the user asks to change the model.
+## Layout
 
-## Read the docs before writing code
+- `agent/agent.ts`: model (Gemini via `@ai-sdk/google`) and `defaultTools: false`. Keep that flag: it's the main security boundary (see `SECURITY.md`).
+- `agent/instructions.md`: system prompt. `agent/skills/plan-week/SKILL.md`: the planning procedure, loaded on demand.
+- `agent/tools/*.ts`: one tool per file; **the filename is the tool name the model sees**, so renaming a file renames the tool and breaks the evals.
+- `agent/lib/calendar.ts`: fetch, parse, and date math. All tools go through `loadCalendar()`; don't fetch the doc anywhere else.
+- `agent/lib/calendar-snapshot.ts`: offline copy of the calendar, the fallback when the live fetch fails.
+- `agent/channels/`: `eve.ts` (HTTP API) and `mcp.ts` (MCP server). `agent/memory/file.ts`, `agent/schedules/weekly-digest.ts`.
+- `test/`: unit tests (`node:test`). `evals/`: model evals (`eve eval`, need a Gemini key).
 
-```sh
-ls node_modules/eve/docs
+## Commands
+
+Node 24 is required (`.nvmrc`); eve won't run on older versions.
+
+```bash
+npm install
+npm run check        # tsc + biome + unit tests; run before every commit
+npm run format       # biome autofix
+npm run dev          # eve dev server + terminal UI on :2000
+npx eve build        # full compile; catches bad tool/skill/schedule definitions tsc misses
+npm run eval         # model evals; needs GOOGLE_GENERATIVE_AI_API_KEY
+semgrep scan --config .semgrep/rules.yml .   # project security rules
 ```
 
-Start with `docs/README.md`: it maps each task to the page that covers it. Read that page before authoring tools, connections, channels, skills, subagents, schedules, or deployment. In a workspace or local package install, resolve the installed `eve` package location first. If the package docs are missing, use https://eve.dev/docs.
+Fire the schedule by hand while `npm run dev` runs: `curl -X POST http://localhost:2000/eve/v1/dev/schedules/weekly-digest`.
 
-Use a bounded authoring loop:
+## Conventions
 
-1. Read the relevant page and inspect only files you will modify or need to imitate.
-2. Stop discovery once the file location, imports, and definition shape are clear. Implement the smallest complete behavior the user requested.
-3. Run one narrow verification. Expand investigation only when it fails or the request needs project-specific details.
+- Imports inside `agent/` and `test/` use explicit `.ts` extensions (`../lib/calendar.ts`); Node runs the tests without a build step.
+- Dates are `YYYY-MM-DD` strings in Pacific time. Use `todayInCourseTz()` and `daysBetween()`; never `new Date()` arithmetic in tools.
+- Tool errors are returned as data (`{ error, retryable }`), not thrown, except when the turn was cancelled.
+- Every `fetch` passes a `signal` with a timeout (Semgrep enforces this).
+- Constraints go in the Zod schema (enums, int ranges), not only in the description. Descriptions say where an argument comes from so tools chain.
 
-Follow links or inspect public types only when the routed page leaves the task unanswered. Do not recursively glob `node_modules`, enumerate the entire docs tree, or read unrelated scaffold files when the direct path is known. Package-manager links can hide files from recursive glob tools even though direct reads work.
+## Guardrails
 
-## Prefer an existing integration
-
-When a task names an external product or service, search the registry before implementing its integration. For a generic capability, author a tool instead.
-
-```sh
-eve registry search <query> --json
-eve registry view <item>
-```
-
-Prefer items whose `implementation` is `native`; use Chat SDK adapters when no native channel fits. `registry view` links the item's documentation.
-
-Install without driving interactive prompts:
-
-```sh
-eve add <item> --non-interactive
-```
-
-Exit code 0 means setup completed, 1 failed, and 2 needs an answer or a prerequisite. On exit 2, run the `next.command` from the final NDJSON event. For a non-secret question, replace its `<JSON value>` answer placeholder with the answer you collected; string values need JSON quotes. Never pass a secret in `--answer`. See `docs/install-integrations.mdx` for setup prerequisites.
-
-## Use eve for Vercel operations
-
-Use eve to link and deploy Vercel projects:
-
-```sh
-eve link --non-interactive --project <name-or-id> [--team <team-id-or-slug>]
-eve deploy --non-interactive --yes [--project <name-or-id>]
-```
-
-A setup may report `eve link` as a prerequisite; run it, then retry the continuation. When a completed setup event has `deploymentRequired: true`, run the `next` command it reports.
-
-## Validate the change
-
-Run the validation the task requests. When it does not establish the behavior you changed, run the narrowest relevant check.
+- Don't add a tool that writes, sends, or executes. The agent reads untrusted docs; read-only is the point.
+- Don't edit `calendar-snapshot.ts` by hand to "fix" a date. Refresh it from the live doc, then update the tests that pin dates.
+- Biome formats Markdown it's pointed at and breaks skill frontmatter, so `biome.json` limits it to `.ts`/`.json`. Keep it that way.
+- `.eve/` and `.output/` are build output; never commit them.
+- Commits are authored as `samhitak10`.

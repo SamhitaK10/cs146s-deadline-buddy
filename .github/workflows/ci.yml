@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run-evals:
+        description: "Also run the model evals (needs the GOOGLE_GENERATIVE_AI_API_KEY secret)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx eve build
+
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      # Project rules (.semgrep/rules.yml) plus Semgrep's TypeScript and secrets rulesets.
+      - run: semgrep scan --error --metrics=off --config .semgrep/rules.yml --config p/typescript --config p/secrets .
+
+  evals:
+    name: Model evals
+    if: github.event_name == 'workflow_dispatch' && inputs.run-evals
+    needs: check
+    runs-on: ubuntu-latest
+    env:
+      GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx eve eval --junit .eve/junit.xml

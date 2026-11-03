@@ -1,4 +1,4 @@
-import { daysBetween, type CalendarItem } from "./calendar.ts";
+import { type CalendarItem, daysBetween } from "./calendar.ts";
 
 function when(days: number): string {
   if (days === 0) return "today";

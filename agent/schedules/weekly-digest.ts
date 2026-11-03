@@ -15,7 +15,7 @@ export default defineSchedule({
         const text = formatDigest(calendar.items, todayInCourseTz(), calendar.source);
         const webhook = process.env.SLACK_WEBHOOK_URL;
         if (!webhook) {
-          console.log("[weekly-digest] SLACK_WEBHOOK_URL not set; digest follows:\n" + text);
+          console.log(`[weekly-digest] SLACK_WEBHOOK_URL not set; digest follows:\n${text}`);
           return;
         }
         const res = await fetch(webhook, {

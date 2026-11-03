@@ -150,19 +150,51 @@ export function daysBetween(fromIso: string, toIso: string): number {
   return Math.round((toUtc(toIso) - toUtc(fromIso)) / 86_400_000);
 }
 
+/**
+ * The week a date belongs to: the first week that hasn't finished by `anchor`.
+ * Course weeks start on Tuesday and end with Sunday's deadline, so on a Monday
+ * this returns the week about to start, not the one that just ended. After the
+ * last item it returns the final week.
+ */
+export function weekForDate(items: CalendarItem[], anchor: string): number | undefined {
+  const lastDateByWeek = new Map<number, string>();
+  for (const i of items) {
+    if (i.week === undefined) continue;
+    const prev = lastDateByWeek.get(i.week);
+    if (!prev || i.date > prev) lastDateByWeek.set(i.week, i.date);
+  }
+  const weeks = [...lastDateByWeek.entries()].sort((a, b) => a[0] - b[0]);
+  if (weeks.length === 0) return undefined;
+  return (weeks.find(([, last]) => last >= anchor) ?? weeks[weeks.length - 1])[0];
+}
+
+// Google Docs IDs are URL-safe base64; anything else could rewrite the URL.
+const DOC_ID_RE = /^[A-Za-z0-9_-]{20,128}$/;
+
 export function exportUrl(docId: string): string {
+  if (!DOC_ID_RE.test(docId)) throw new Error("COURSE_CALENDAR_DOC_ID is not a valid Google Docs ID");
   return `https://docs.google.com/document/d/${docId}/export?format=txt`;
 }
+
+// One model turn often calls several calendar tools; reuse a fetch for 5 minutes.
+const CACHE_MS = 5 * 60_000;
+let cache: { at: number; key: string; calendar: Calendar } | undefined;
 
 /**
  * Fetches the live calendar. If the doc can't be reached, falls back to the
  * snapshot bundled with the agent so it can still answer, and says so.
  */
-export async function loadCalendar(options: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {}): Promise<Calendar> {
+export async function loadCalendar(
+  options: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {},
+): Promise<Calendar> {
   const docId = process.env.COURSE_CALENDAR_DOC_ID || DEFAULT_CALENDAR_DOC_ID;
   const fallYear = Number(process.env.COURSE_FALL_YEAR) || 2026;
-  const doFetch = options.fetchImpl ?? fetch;
+  const useCache = !options.fetchImpl;
+  const key = `${docId}:${fallYear}`;
+  if (useCache && cache && cache.key === key && Date.now() - cache.at < CACHE_MS) return cache.calendar;
 
+  const doFetch = options.fetchImpl ?? fetch;
+  let calendar: Calendar;
   try {
     const timeout = AbortSignal.timeout(8_000);
     const signal = options.signal ? AbortSignal.any([options.signal, timeout]) : timeout;
@@ -172,12 +204,15 @@ export async function loadCalendar(options: { signal?: AbortSignal; fetchImpl?: 
     const items = parseCalendar(text, fallYear);
     // A login page or an emptied doc parses to nothing; don't trust it.
     if (items.length === 0) throw new Error("no dated items found in the document");
-    return { items, source: "live" };
+    calendar = { items, source: "live" };
   } catch (error) {
     if (options.signal?.aborted) throw error;
-    return {
+    calendar = {
       items: parseCalendar(CALENDAR_SNAPSHOT, fallYear),
       source: `snapshot from ${CALENDAR_SNAPSHOT_DATE} (live fetch failed: ${(error as Error).message})`,
     };
   }
+  // Only cache live results, so a temporary outage doesn't stick for 5 minutes.
+  if (useCache && calendar.source === "live") cache = { at: Date.now(), key, calendar };
+  return calendar;
 }

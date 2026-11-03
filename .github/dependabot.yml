@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      eve-and-ai-sdk:
+        patterns: ["eve", "ai", "@ai-sdk/*", "@vercel/*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

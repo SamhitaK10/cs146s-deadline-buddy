@@ -14,7 +14,9 @@
     "start": "eve start",
     "typecheck": "tsc",
     "test": "node --test test/*.test.ts",
-    "check": "tsc && node --test test/*.test.ts"
+    "check": "tsc && biome check . && node --test test/*.test.ts",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.109",
@@ -24,6 +26,7 @@
     "zod": "4.5.4"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.4",
     "@types/node": "24.x",
     "typescript": "7.0.2"
   },

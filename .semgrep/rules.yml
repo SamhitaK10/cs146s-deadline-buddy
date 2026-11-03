@@ -1,0 +1,35 @@
+rules:
+  - id: no-logging-env-vars
+    message: >-
+      Don't log environment variables. They hold the Gemini API key and the Slack
+      webhook URL, and logs end up in places secrets shouldn't.
+    severity: ERROR
+    languages: [typescript, javascript]
+    pattern-either:
+      - pattern: 'console.$LOG(..., process.env.$VAR, ...)'
+      - pattern: 'console.$LOG(..., `...${process.env.$VAR}...`, ...)'
+      - pattern: 'console.$LOG(..., process.env, ...)'
+
+  - id: fetch-needs-timeout
+    message: >-
+      Tools run inside a model turn. A fetch without a signal can hang the turn
+      forever; pass `signal` with an AbortSignal.timeout(...).
+    severity: ERROR
+    languages: [typescript, javascript]
+    paths:
+      include: ["agent/tools/**", "agent/lib/**"]
+    patterns:
+      - pattern-either:
+          - pattern: 'fetch($URL)'
+          - pattern: 'fetch($URL, $OPTS)'
+      - pattern-not: 'fetch($URL, {..., signal: $S, ...})'
+
+  - id: tool-must-not-run-shell
+    message: >-
+      Deadline Buddy reads untrusted documents. Its tools must never spawn
+      processes, or a prompt injection in a fetched doc could run commands.
+    severity: ERROR
+    languages: [typescript, javascript]
+    paths:
+      include: ["agent/**"]
+    pattern-regex: '(from\s+|require\(\s*)["''](node:)?child_process["'']'

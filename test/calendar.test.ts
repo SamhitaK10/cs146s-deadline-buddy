@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { daysBetween, loadCalendar, parseCalendar, todayInCourseTz } from "../agent/lib/calendar.ts";
+import {
+  daysBetween,
+  exportUrl,
+  loadCalendar,
+  parseCalendar,
+  todayInCourseTz,
+  weekForDate,
+} from "../agent/lib/calendar.ts";
 import { CALENDAR_SNAPSHOT } from "../agent/lib/calendar-snapshot.ts";
 import { formatDigest } from "../agent/lib/digest.ts";
 
@@ -23,7 +30,10 @@ test("finds all four OSS contributions with the right dates", () => {
 });
 
 test("every printed weekday matches its date", () => {
-  assert.deepEqual(items.filter((i) => i.weekdayMismatch), []);
+  assert.deepEqual(
+    items.filter((i) => i.weekdayMismatch),
+    [],
+  );
 });
 
 test("attaches weeks, notes and times", () => {
@@ -95,4 +105,40 @@ test("digest lists the next two weeks of deadlines", () => {
   assert.match(text, /OSS Contribution 3 due \(in 14 days\)/);
   assert.doesNotMatch(text, /Assignment 6/);
   assert.doesNotMatch(text, /Calendar source/);
+});
+
+test("current week: Monday after a Sunday deadline is the next week", () => {
+  assert.equal(weekForDate(items, "2026-11-01"), 6); // Sunday: Assignment 5 is due today, still week 6
+  assert.equal(weekForDate(items, "2026-11-02"), 7); // Monday: week 6 is over
+  assert.equal(weekForDate(items, "2026-11-05"), 7);
+  assert.equal(weekForDate(items, "2026-09-01"), 1); // before the quarter
+  assert.equal(weekForDate(items, "2026-12-20"), 11); // after the last item
+  // Thanksgiving gap: week 9 ends 11/22, week 10 starts 12/1.
+  assert.equal(weekForDate(items, "2026-11-25"), 10);
+});
+
+test("rejects a calendar doc ID that could rewrite the URL", () => {
+  assert.throws(() => exportUrl("../../evil.example/x?"), /not a valid Google Docs ID/);
+  assert.match(
+    exportUrl("1W11sWBigWIsi9wVIhhFx3wajIEnP0Qfb-ei8Ecf5VKU"),
+    /^https:\/\/docs\.google\.com\/document\/d\//,
+  );
+});
+
+test("an invalid doc ID falls back to the snapshot instead of fetching", async () => {
+  const before = process.env.COURSE_CALENDAR_DOC_ID;
+  process.env.COURSE_CALENDAR_DOC_ID = "not/a/doc";
+  let called = false;
+  const spy = (async () => {
+    called = true;
+    return new Response("");
+  }) as typeof fetch;
+  try {
+    const cal = await loadCalendar({ fetchImpl: spy });
+    assert.equal(called, false);
+    assert.match(cal.source, /not a valid Google Docs ID/);
+  } finally {
+    if (before === undefined) delete process.env.COURSE_CALENDAR_DOC_ID;
+    else process.env.COURSE_CALENDAR_DOC_ID = before;
+  }
 });
