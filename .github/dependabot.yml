@@ -7,6 +7,10 @@ updates:
     groups:
       eve-and-ai-sdk:
         patterns: ["eve", "ai", "@ai-sdk/*", "@vercel/*"]
+    ignore:
+      # Types must match the Node version in .nvmrc (24), not the newest Node.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
