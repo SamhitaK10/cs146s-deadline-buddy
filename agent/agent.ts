@@ -9,7 +9,7 @@ const google = createGoogleGenerativeAI({
 });
 
 export default defineAgent({
-  model: google(process.env.GEMINI_MODEL || "gemini-3.5-flash"),
+  model: google(process.env.GEMINI_MODEL || "gemini-3.6-flash"),
   // Set explicitly so eve doesn't need the AI Gateway catalog for a direct
   // Google model. Lower than Gemini's real limit, so compaction starts early.
   modelContextWindowTokens: 200_000,

@@ -57,7 +57,7 @@ Get a free Gemini API key at [Google AI Studio](https://aistudio.google.com/apik
 | Variable | Required | Default |
 |---|---|---|
 | `GOOGLE_GENERATIVE_AI_API_KEY` | yes | |
-| `GEMINI_MODEL` | no | `gemini-3.5-flash` |
+| `GEMINI_MODEL` | no | `gemini-3.6-flash` |
 | `SLACK_WEBHOOK_URL` | no, only for the digest | digest prints to the server log instead |
 | `COURSE_CALENDAR_DOC_ID` | no | the CS 146S FA26 calendar |
 | `COURSE_FALL_YEAR` | no | `2026` |
