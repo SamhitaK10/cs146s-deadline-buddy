@@ -19,10 +19,10 @@
     "format": "biome check --write ."
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.109",
-    "@vercel/connect": "2.7.0",
-    "ai": "^7.0.137",
-    "eve": "^1.0.0-rc.1",
+    "@ai-sdk/google": "^4.0.113",
+    "@vercel/connect": "2.9.0",
+    "ai": "^7.0.164",
+    "eve": "^1.0.0-rc.6",
     "zod": "4.6.7"
   },
   "devDependencies": {
